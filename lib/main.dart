@@ -1,4 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart';
 
 void main() {
   runApp(const MyApp());
@@ -49,59 +55,67 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
-
+  File? _image;
   void _incrementCounter() {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
       _counter++;
     });
   }
 
+  Future getImage(ImageSource source) async {
+    try {
+      final image = await ImagePicker().pickImage(source: source);
+      if (image == null) return;
+
+      final imageTemp = await saveImage(image.path);
+      setState(() {
+        // print('What imageTemp here $imageTemp');
+        _image = imageTemp;
+        // print('What image here $_image');
+      });
+    } on PlatformException catch (e) {
+      print('What the error here $e');
+    }
+  }
+
+// Save Image in your device
+  Future<File> saveImage(String imagePath) async {
+    final directory = await getApplicationDocumentsDirectory();
+    print('What directory here =====> $directory');
+    final name = basename(imagePath);
+    print('What name here =====> $name');
+    final image = File('${directory.path}/$name');
+    print('What image here =====> $image');
+
+    return File(imagePath).copy(image.path);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+            _image != null
+                ? Image.file(_image!,
+                    width: 250, height: 240, fit: BoxFit.cover)
+                : Image.network('https://picsum.photos/250?image=4'),
+            const SizedBox(
+              height: 40,
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
+            // ignore: avoid_print
+            CustomButton(
+                title: 'Pick Image',
+                icon: Icons.image_outlined,
+                onClick: () => getImage(ImageSource.gallery)),
+            CustomButton(
+                title: 'Pick From Camera',
+                icon: Icons.camera,
+                onClick: () => getImage(ImageSource.camera))
           ],
         ),
       ),
@@ -109,7 +123,43 @@ class _MyHomePageState extends State<MyHomePage> {
         onPressed: _incrementCounter,
         tooltip: 'Increment',
         child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      ),
     );
+  }
+}
+
+class CustomButton extends StatefulWidget {
+  const CustomButton(
+      {Key? key,
+      required this.title,
+      required this.icon,
+      required this.onClick})
+      : super(key: key);
+
+  final String title;
+  final IconData icon;
+  final VoidCallback onClick;
+
+  @override
+  State<CustomButton> createState() => _CustomButtonState();
+}
+
+class _CustomButtonState extends State<CustomButton> {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+        width: 320,
+        child: ElevatedButton(
+          onPressed: widget.onClick,
+          child: Row(
+            children: <Widget>[
+              Icon(widget.icon),
+              const SizedBox(
+                width: 20,
+              ),
+              Text(widget.title),
+            ],
+          ),
+        ));
   }
 }
